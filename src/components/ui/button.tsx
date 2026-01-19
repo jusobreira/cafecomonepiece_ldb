@@ -11,7 +11,6 @@ export interface ButtonProps
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  default: "bg-primary text-primary-foreground hover:bg-primary/90",
   outline: "border border-border bg-transparent hover:bg-muted",
   ghost: "bg-transparent hover:bg-muted",
 };

@@ -411,7 +411,7 @@ export default function PieChart({ data }: PieChartProps) {
           <Button
             size="sm"
             onClick={handleDownload}
-            className="bg-[#FFC208] text-black hover:bg-[#FFC208]"
+            className="w-32 bg-[#FFC208] text-black hover:bg-[#FFC208]"
           >
             Baixar
           </Button>

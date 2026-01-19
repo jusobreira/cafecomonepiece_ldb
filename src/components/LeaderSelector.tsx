@@ -63,7 +63,7 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
   return (
     <div className="w-full max-w-md">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-primary">Seleção de Líderes</h2>
+        <h2 className="text-2xl font-bold text-[#FFC208]">Seleção de Líderes</h2>
         {totalCount > 0 && (
           <Button
             onClick={handleReset}

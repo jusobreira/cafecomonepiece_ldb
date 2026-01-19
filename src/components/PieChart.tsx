@@ -406,7 +406,7 @@ export default function PieChart({ data }: PieChartProps) {
         />
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-gray-500">
-            Clique em uma fatia, arraste para mover a imagem, use scroll para zoom
+            Clique em uma fatia, arraste para mover a imagem, use clique+scroll para dar zoom
           </p>
           <Button
             size="sm"

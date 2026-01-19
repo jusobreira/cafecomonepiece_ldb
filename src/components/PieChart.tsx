@@ -394,7 +394,7 @@ export default function PieChart({ data }: PieChartProps) {
           onWheel={handleWheel}
         />
         <p className="text-xs text-gray-500 text-center mt-2">
-          Clique em uma fatia, arraste para mover a imagem, use scroll para zoom
+          Clique em uma fatia, arraste para mover a imagem, use clique+scroll para zoom.
         </p>
       </div>
 

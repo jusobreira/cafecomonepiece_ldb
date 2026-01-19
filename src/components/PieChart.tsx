@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent, WheelEvent } from "react";
+import { Button } from "@/components/ui/button";
 import { Leader } from "@/lib/leaders";
 import cafeComOnePieceBadge from "@/assets/cafecomonepiece.png";
 
@@ -371,6 +372,16 @@ export default function PieChart({ data }: PieChartProps) {
     setImageAdjustments(newAdjustments);
   };
 
+  const handleDownload = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/png");
+    link.download = "grafico.png";
+    link.click();
+  };
+
   if (data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-96">
@@ -393,9 +404,18 @@ export default function PieChart({ data }: PieChartProps) {
           onMouseLeave={handleCanvasMouseUp}
           onWheel={handleWheel}
         />
-        <p className="text-xs text-gray-500 text-center mt-2">
-          Clique em uma fatia, arraste para mover a imagem, use clique+scroll para zoom.
-        </p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500">
+            Clique em uma fatia, arraste para mover a imagem, use scroll para zoom
+          </p>
+          <Button
+            size="sm"
+            onClick={handleDownload}
+            className="bg-[#FFC208] text-black hover:bg-[#FFC208]"
+          >
+            Baixar
+          </Button>
+        </div>
       </div>
 
       {/* Legend */}
@@ -431,7 +451,7 @@ export default function PieChart({ data }: PieChartProps) {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <div className="flex items-baseline gap-2">
-                      <p className="text-lg font-bold text-primary">
+                      <p className="text-lg font-bold text-[#FFC208]">
                         {item.count}
                       </p>
                       <p className="text-xs font-semibold text-gray-600">

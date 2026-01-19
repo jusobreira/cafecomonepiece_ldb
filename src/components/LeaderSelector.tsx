@@ -141,7 +141,7 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
                     onClick={() => handleIncrement(leader.id)}
                     variant="default"
                     size="sm"
-                    className="h-8 w-8 p-0 bg-primary hover:bg-primary/90"
+                    className="h-8 w-8 p-0 bg-[#FFC208] text-black hover:bg-[#FFC208]"
                   >
                     <Plus className="h-3 w-3" />
                   </Button>

@@ -8,7 +8,7 @@ export interface Leader {
 
 export const LEADERS: Leader[] = [
   // OP Series
-  { id: "op01-001", code: "OP01-001", name: "Roronoa Zoro", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-001_p2_EN.webp", color: "#1A3A52" },
+  { id: "op01-001", code: "OP01-001", name: "Roronoa Zoro", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-001_EN.webp", color: "#1A3A52" },
   { id: "op01-002", code: "OP01-002", name: "Trafalgar Law", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-002_EN.webp", color: "#1A3A52" },
   { id: "op01-003", code: "OP01-003", name: "Monkey D Luffy", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-003_EN.webp", color: "#FF6B35" },
   { id: "op01-031", code: "OP01-031", name: "Kouzuki Oden", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-031_EN.webp", color: "#D4AF37" },

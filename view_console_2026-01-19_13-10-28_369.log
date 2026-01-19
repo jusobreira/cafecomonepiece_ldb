@@ -1,0 +1,50 @@
+> 
+// Extrair dados dos cards no grid
+const cards = Array.from(document.querySelectorAll('a[href*="/cards/"]'));
+const leaders = [];
+
+cards.forEach(card => {
+  const img = card.querySelector('img');
+  if (img && img.src) {
+    // Extrair código e nome da URL da imagem ou do atributo alt
+    const src = img.src;
+    const alt = img.alt || '';
+    
+    // Tentar extrair o código da URL da imagem
+    const match = src.match(/\/([A-Z]+\d+-\d+)_/);
+    if (match) {
+      const code = match[1];
+      const name = alt.replace(code, '').trim() || code;
+      
+      // Construir URL correta
+      const set = code.split('-')[0];
+      const imageUrl = `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/${set}/${code}_EN.webp`;
+      
+      leaders.push({
+        code,
+        name,
+        image: imageUrl
+      });
+    }
+  }
+});
+
+// Remover duplicatas
+const unique = Array.from(new Map(leaders.map(l => [l.code, l])).values());
+console.log(`Total de líderes únicos: ${unique.length}`);
+console.log(JSON.stringify(unique, null, 2));
+
+< undefined
+> 
+const cards = document.querySelectorAll('a[href*="/cards/"]');
+console.log(`Total de cards encontrados: ${cards.length}`);
+
+// Mostrar os primeiros 5 cards para debug
+for (let i = 0; i < Math.min(5, cards.length); i++) {
+  const img = cards[i].querySelector('img');
+  if (img) {
+    console.log(`Card ${i}: alt="${img.alt}", src="${img.src.substring(0, 100)}"`);
+  }
+}
+
+< undefined

@@ -133,9 +133,9 @@ export const LEADERS: Leader[] = [
   // Promo Series
   { id: "p-011", code: "P-011", name: "Uta", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-011_EN.webp", color: "#9D4EDD" },
   { id: "p-047", code: "P-047", name: "Monkey.D.Luffy", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-047_EN.webp", color: "#8B0000" },
-  { id: "p-076", code: "P-076", name: "Monkey.D.Luffy", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-076_EN.webp", color: "#FF6B35" },
-  { id: "p-011", code: "P-011", name: "Trafalgar Law", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-086_EN.webp", color: "#9D4EDD" },
-  { id: "p-117", code: "P-117", name: "Nami", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-076_EN.webp", color: "#FF6B35" },
+  { id: "p-076", code: "P-076", name: "Sakazuki", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-076_EN.webp", color: "#FF6B35" },
+  { id: "p-086", code: "P-086", name: "Trafalgar Law", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-086_EN.webp", color: "#9D4EDD" },
+  { id: "p-117", code: "P-117", name: "Nami", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-117_EN.webp", color: "#FF6B35" },
 ];
 
 export function filterLeaders(query: string): Leader[] {

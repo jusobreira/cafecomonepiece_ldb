@@ -66,6 +66,13 @@ export default function PieChart({ data }: PieChartProps) {
     // Preload all images
     const imageMap = new Map<string, HTMLImageElement>();
     const badgeImage = new Image();
+    const resolveCanvasImageUrl = (url: string) => {
+      if (!import.meta.env.PROD) return url;
+      if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+      if (url.startsWith(window.location.origin)) return url;
+      const sanitized = url.replace(/^https?:\/\//, "");
+      return `https://images.weserv.nl/?url=${encodeURIComponent(sanitized)}`;
+    };
 
     const drawChart = () => {
       // Clear canvas
@@ -227,6 +234,7 @@ export default function PieChart({ data }: PieChartProps) {
     leadersToLoad.forEach((item) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
+      const canvasImageUrl = resolveCanvasImageUrl(item.leader.image);
 
       const onImageLoad = () => {
         imageMap.set(item.leader.id, img);
@@ -235,6 +243,7 @@ export default function PieChart({ data }: PieChartProps) {
 
       const onImageError = () => {
         const retryImg = new Image();
+        retryImg.crossOrigin = "anonymous";
         retryImg.onload = () => {
           imageMap.set(item.leader.id, retryImg);
           markImageLoaded();
@@ -242,12 +251,12 @@ export default function PieChart({ data }: PieChartProps) {
         retryImg.onerror = () => {
           markImageLoaded();
         };
-        retryImg.src = item.leader.image;
+        retryImg.src = canvasImageUrl;
       };
 
       img.onload = onImageLoad;
       img.onerror = onImageError;
-      img.src = item.leader.image;
+      img.src = canvasImageUrl;
     });
 
     badgeImage.onload = markImageLoaded;
@@ -377,7 +386,15 @@ export default function PieChart({ data }: PieChartProps) {
     if (!canvas) return;
 
     const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
+    try {
+      link.href = canvas.toDataURL("image/png");
+    } catch (error) {
+      console.error("Failed to export canvas image", error);
+      alert(
+        "Não foi possível exportar a imagem. Verifique se as imagens permitem uso com CORS."
+      );
+      return;
+    }
     link.download = "grafico.png";
     link.click();
   };
@@ -406,7 +423,7 @@ export default function PieChart({ data }: PieChartProps) {
         />
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-gray-500">
-            Clique em uma fatia, arraste para mover a imagem, use clique+scroll para dar zoom
+            Clique em uma fatia, arraste para mover a imagem, use scroll para zoom
           </p>
           <Button
             size="sm"

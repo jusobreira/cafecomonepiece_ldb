@@ -136,7 +136,7 @@ export const LEADERS: Leader[] = [
   { id: "p-076", code: "P-076", name: "Sakazuki", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-076_EN.webp", color: "#FF6B35" },
   { id: "p-086", code: "P-086", name: "Trafalgar Law", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-086_EN.webp", color: "#9D4EDD" },
   { id: "p-117", code: "P-117", name: "Nami", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-117_EN.webp", color: "#FF6B35" },
-  { id: "others", code: "otros", name: "Outros", image: "https://static.wixstatic.com/media/858f16_188302edd0ba41b085ce526a30c792fe~mv2.png", color: "#FF6B35" },
+  { id: "others", code: "others-otros", name: "Outros", image: "https://static.wixstatic.com/media/858f16_188302edd0ba41b085ce526a30c792fe~mv2.png", color: "#FF6B35" },
 ];
 
 export function filterLeaders(query: string): Leader[] {

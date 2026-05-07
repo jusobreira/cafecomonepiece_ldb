@@ -146,7 +146,7 @@ export const LEADERS: Leader[] = [
   { id: "p-117", code: "P-117", name: "Nami", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-117_EN.webp", color: "#FF6B35" },
   { id: "others", code: "others-otros", name: "Outros", image: "https://static.wixstatic.com/media/858f16_188302edd0ba41b085ce526a30c792fe~mv2.png", color: "#FF6B35" },
  // Paises
-  { id: "Brasil", code: "Brasil", name: "Brasil", image: "https://rondonia.ro.gov.br/wp-content/uploads/2020/09/Bandeira-Nacionals%C3%ADmbolo-maior-da-P%C3%A1tria-Brasileira-Foto-Divulga%C3%A7%C3%A3o.jpg", color: "#9D4EDD" },
+  { id: "Brasil", code: "Brasil", name: "Brasil", image: "https://t3.ftcdn.net/jpg/01/63/82/20/360_F_163822042_fh2VMaxEJKHpyVF3tjm4pOMdr5ZJiaUE.jpg", color: "#9D4EDD" },
   { id: "EUA", code: "EUA", name: "EUA", image: "https://www.eccobandeiras.com.br/image/cache/catalog/antigas/Estados-Unidos-1111x740.jpg", color: "#9D4EDD" },
   { id: "Chile", code: "Chile", name: "Chile", image: "https://www.flagsonline.it/uploads/2016-6-6/1200-0/chile.jpg", color: "#9D4EDD" },
   { id: "Peru", code: "Peru", name: "PERU", image: "https://www.eccobandeiras.com.br/image/cache/catalog/antigas/Estados-Unidos-1111x740.jpg", color: "#9D4EDD" },

@@ -145,6 +145,18 @@ export const LEADERS: Leader[] = [
   { id: "p-086", code: "P-086", name: "Trafalgar Law", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-086_EN.webp", color: "#9D4EDD" },
   { id: "p-117", code: "P-117", name: "Nami", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/P/P-117_EN.webp", color: "#FF6B35" },
   { id: "others", code: "others-otros", name: "Outros", image: "https://static.wixstatic.com/media/858f16_188302edd0ba41b085ce526a30c792fe~mv2.png", color: "#FF6B35" },
+ // Paises
+  { id: "Brasil", code: "Brasil", name: "Brasil", image: "https://rondonia.ro.gov.br/wp-content/uploads/2020/09/Bandeira-Nacionals%C3%ADmbolo-maior-da-P%C3%A1tria-Brasileira-Foto-Divulga%C3%A7%C3%A3o.jpg", color: "#9D4EDD" },
+  { id: "EUA", code: "EUA", name: "EUA", image: "https://www.eccobandeiras.com.br/image/cache/catalog/antigas/Estados-Unidos-1111x740.jpg", color: "#9D4EDD" },
+  { id: "Chile", code: "Chile", name: "Chile", image: "https://www.flagsonline.it/uploads/2016-6-6/1200-0/chile.jpg", color: "#9D4EDD" },
+  { id: "Peru", code: "Peru", name: "PERU", image: "https://www.eccobandeiras.com.br/image/cache/catalog/antigas/Estados-Unidos-1111x740.jpg", color: "#9D4EDD" },
+  { id: "México", code: "México", name: "México", image: "https://www.federalflags.com/cdn/shop/products/0012_Mexico-flag-emblem_6a001ebf-b9e1-4dba-85ea-1aacfe478397.jpg", color: "#9D4EDD" },
+  { id: "Bolívia", code: "Bolívia", name: "Bolívia", image: "https://t3.ftcdn.net/jpg/03/36/04/60/360_F_336046029_3htJ8DoV4FGBrNSM7ehEZcRtlWdCBqR4.jpg", color: "#9D4EDD" },
+  { id: "Equador", code: "Equador", name: "Equador", image: "https://img.freepik.com/fotos-premium/bandeira-do-equador-balancando-ao-vento_2227-1992.jpg", color: "#9D4EDD" },
+  { id: "Uruguai", code: "Uruguai", name: "Uruguai", image: "https://t3.ftcdn.net/jpg/19/67/78/80/360_F_1967788082_CXqlHoiqmS1J5LkiZ7DFQgm9NXigpgZf.jpg", color: "#9D4EDD" },
+  { id: "Argentina", code: "Argentina", name: "Argentina", image: "https://t3.ftcdn.net/jpg/00/42/50/34/360_F_42503487_5R2vtjtXNYYomm3qd6ZpN9jSPjj3r0pm.jpg", color: "#9D4EDD" },
+  { id: "Croácia", code: "Croácia", name: "Croácia", image: "https://www.eccobandeiras.com.br/image/cache/catalog/antigas/Cro%C3%A1cia-1111x740.jpg", color: "#9D4EDD" },
+  { id: "Coréia do Sul", code: "Coréia do Sul", name: "Coréia do Sul", image: "https://i0.wp.com/flag-shop.ca/wp-content/uploads/2024/11/img-flag-shop-flags-of-the-world-south-korea-flag-1-2.webp", color: "#9D4EDD" },
 ];
 
 export function filterLeaders(query: string): Leader[] {

@@ -143,6 +143,7 @@ export const LEADERS: Leader[] = [
   { id: "st21-001", code: "ST21-001", name: "Monkey.D.Luffy", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/ST21/ST21-001_EN.webp", color: "#9D4EDD" },
   { id: "st22-001", code: "ST22-001", name: "Ace & Newgate", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/ST22/ST22-001_EN.webp", color: "#8B0000" },
   { id: "st29-001", code: "ST29-001", name: "Monkey.D.Luffy", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/ST29/ST29-001_EN.webp", color: "#FF6B35" },
+  { id: "st30-001", code: "ST30-001", name: "Luffy & Ace", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/ST30/ST30-001_EN.webp", color: "#FF6B35" },
  // Prb Series
   { id: "prb01-001", code: "PRB01-001", name: "Sanji", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/PRB01/PRB01-001_EN.webp", color: "#9D4EDD" },
   // Promo Series

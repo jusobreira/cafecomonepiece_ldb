@@ -39,7 +39,15 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
     setCounts(newCounts);
     updateData(newCounts);
   };
+ const handleSetCount = (leaderId: string, value: number) => {
+  const newCounts = {
+    ...counts,
+    [leaderId]: Math.max(0, value),
+  };
 
+  setCounts(newCounts);
+  updateData(newCounts);
+ };
   const handleReset = () => {
     const newCounts = LEADERS.reduce(
       (acc, leader) => ({ ...acc, [leader.id]: 0 }),
@@ -167,10 +175,23 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
                   >
                     <Minus className="h-3 w-3" />
                   </Button>
-                  <span className="w-8 text-center font-bold text-lg">
-                    {counts[leader.id]}
-                  </span>
-                  <Button
+                  
+				 <Input
+                type="number"
+				min={0}
+				value={counts[leader.id]}
+				onChange={(e) => {
+				const value = parseInt(e.target.value);
+
+				handleSetCount(
+			leader.id,
+			isNaN(value) ? 0 : value
+									);
+				}}
+				className="w-16 h-8 text-center font-bold p-1"
+				/>
+                  
+				  <Button
                     onClick={() => handleIncrement(leader.id)}
                     variant="default"
                     size="sm"

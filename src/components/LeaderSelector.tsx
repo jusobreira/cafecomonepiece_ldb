@@ -18,6 +18,7 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
     LEADERS.reduce((acc, leader) => ({ ...acc, [leader.id]: 0 }), {})
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [bulkImport, setBulkImport] = useState("");
 
   // Filtrar líderes baseado na busca
   const filteredLeaders = useMemo(() => {
@@ -46,6 +47,24 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
     );
     setCounts(newCounts);
     updateData(newCounts);
+  };
+
+
+  const handleBulkImport = () => {
+    const newCounts = LEADERS.reduce((acc, leader) => ({ ...acc, [leader.id]: 0 }), {} as LeaderCount);
+    const invalid:string[]=[];
+    bulkImport.split(/\r?\n/).forEach((line)=>{
+      const m=line.trim().match(/^(\d+)\s*x?\s*([A-Za-z0-9-]+)/i);
+      if(!m) return;
+      const qty=parseInt(m[1],10);
+      const code=m[2].toUpperCase();
+      const leader=LEADERS.find(l=>l.code.toUpperCase()===code);
+      if(!leader){invalid.push(code);return;}
+      newCounts[leader.id]=qty;
+    });
+    setCounts(newCounts);
+    updateData(newCounts);
+    if(invalid.length){alert("Códigos não encontrados: "+invalid.join(", "));}
   };
 
   const updateData = (newCounts: LeaderCount) => {
@@ -88,6 +107,20 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
           className="pl-10 border-2 border-primary/30 focus:border-primary"
         />
       </div>
+
+
+      <Card className="mb-4 p-4">
+        <p className="font-semibold mb-2">Importação em lote</p>
+        <textarea
+          className="w-full min-h-[120px] rounded-md border p-2 font-mono text-sm"
+          placeholder={"4xOP01-001\n3xOP01-002"}
+          value={bulkImport}
+          onChange={(e)=>setBulkImport(e.target.value)}
+        />
+        <Button className="mt-3 w-full bg-[#FFC208] text-black hover:bg-[#FFC208]" onClick={handleBulkImport}>
+          Importar Lista
+        </Button>
+      </Card>
 
       {/* Leaders List */}
       <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">

@@ -111,6 +111,12 @@ export const LEADERS: Leader[] = [
   { id: "op16-060", code: "OP16-060", name: "Sengoku", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP16/OP16-060_EN.webp", color: "#1A3A52" },
   { id: "op16-079", code: "OP16-079", name: "Yamato", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP16/OP16-079_EN.webp", color: "#1A3A52" },
   { id: "op16-080", code: "OP16-080", name: "Marshall.D.Teach", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP16/OP16-080_EN.webp", color: "#1A3A52" },
+  { id: "op17-001", code: "OP17-001", name: "Edward.Newgate", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-001_EN.webp", color: "#1A3A52" },
+  { id: "op17-020", code: "OP17-020", name: "Shanks", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-020_EN.webp", color: "#1A3A52" },
+  { id: "op17-039", code: "OP17-039", name: "Rocks.D.Xebec", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-039_EN.webp", color: "#1A3A52" },
+  { id: "op17-058", code: "OP17-058", name: "Kaido", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-058_EN.webp", color: "#1A3A52" },
+  { id: "op17-079", code: "OP17-079", name: "Monkey.D.Luffy", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-079_EN.webp", color: "#1A3A52" },
+  { id: "op17-099", code: "OP17-099", name: "Charlotte Linlin", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-099_EN.webp", color: "#1A3A52" },
 
 
   // EB Series

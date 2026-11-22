@@ -117,6 +117,12 @@ export const LEADERS: Leader[] = [
   { id: "op17-058", code: "OP17-058", name: "Kaido", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-058_EN.webp", color: "#1A3A52" },
   { id: "op17-079", code: "OP17-079", name: "Monkey.D.Luffy", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-079_EN.webp", color: "#1A3A52" },
   { id: "op17-099", code: "OP17-099", name: "Charlotte Linlin", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP17/OP17-099_EN.webp", color: "#1A3A52" },
+  { id: "op18-001", code: "OP18-001", name: "Karoo", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP18/OP18-001_EN.webp", color: "#7A1F1F" },
+  { id: "op18-021", code: "OP18-021", name: "Franky", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP18/OP18-021_EN.webp", color: "#1F5A3A" },
+  { id: "op18-022", code: "OP18-022", name: "Monkey.D.Luffy", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP18/OP18-022_EN.webp", color: "#1F5A3A" },
+  { id: "op18-041", code: "OP18-041", name: "Ms. All Sunday", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP18/OP18-041_EN.webp", color: "#1A3A52" },
+  { id: "op18-060", code: "OP18-060", name: "Saint Gunko", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP18/OP18-060_EN.webp", color: "#4A2A6A" },
+  { id: "op18-079", code: "OP18-079", name: "Spandam", image: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP18/OP18-079_EN.webp", color: "#1E1E1E" },
 
 
   // EB Series

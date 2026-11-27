@@ -6,3 +6,4 @@ node_modules/
 exec_result_*.txt
 view_console_*.log
 pasted_file_*
+dist/

@@ -3,7 +3,7 @@ import type { MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Minus, RotateCcw, Search, X } from "lucide-react";
+import { Plus, Minus, RotateCcw, Search } from "lucide-react";
 import { Leader, LEADERS, filterLeaders } from "@/lib/leaders";
 
 interface LeaderCount {
@@ -94,10 +94,6 @@ export default function LeaderSelector({
 
   const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
-  // Líderes já escolhidos ficam numa seção própria no topo da lista
-  const selectedLeaders = LEADERS.filter((l) => counts[l.id] > 0);
-  const unselectedLeaders = filteredLeaders.filter((l) => !(counts[l.id] > 0));
-
   // Quando uma fatia é clicada no gráfico, rola a lista até o líder
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   useEffect(() => {
@@ -126,7 +122,7 @@ export default function LeaderSelector({
     onSelect?.(leaderId);
   };
 
-  const renderRow = (leader: Leader, removable: boolean) => (
+  const renderRow = (leader: Leader) => (
     <div
       key={leader.id}
       ref={(el) => {
@@ -202,17 +198,6 @@ export default function LeaderSelector({
               <Plus className="h-3 w-3" />
             </Button>
 
-            {removable && (
-              <Button
-                onClick={() => handleSetCount(leader.id, 0)}
-                variant="ghost"
-                size="sm"
-                title="Remover da seleção"
-                className="h-8 w-8 p-0 flex-shrink-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         </div>
       </Card>
@@ -268,29 +253,13 @@ export default function LeaderSelector({
 
       {/* Leaders List */}
       <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-        {selectedLeaders.length > 0 && (
-          <>
-            <div className="sticky top-0 z-10 bg-background py-1">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-[#FFC208]">
-                Selecionados ({selectedLeaders.length})
-              </h3>
-            </div>
-            {selectedLeaders.map((leader) => renderRow(leader, true))}
-            <div className="border-t border-border pt-3">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                Todos os líderes
-              </h3>
-            </div>
-          </>
-        )}
-
-        {unselectedLeaders.length > 0 ? (
-          unselectedLeaders.map((leader) => renderRow(leader, false))
-        ) : searchQuery ? (
+        {filteredLeaders.length > 0 ? (
+          filteredLeaders.map((leader) => renderRow(leader))
+        ) : (
           <div className="text-center py-8 text-muted-foreground">
             <p>Nenhum líder encontrado para "{searchQuery}"</p>
           </div>
-        ) : null}
+        )}
       </div>
 
       {/* Total Count */}

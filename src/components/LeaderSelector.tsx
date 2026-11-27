@@ -165,12 +165,12 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
                 </div>
 
                 {/* Counter Controls */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-shrink-0 items-center gap-1.5">
                   <Button
                     onClick={() => handleDecrement(leader.id)}
                     variant="outline"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 flex-shrink-0"
                     disabled={counts[leader.id] === 0}
                   >
                     <Minus className="h-3 w-3" />
@@ -188,14 +188,14 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
 			isNaN(value) ? 0 : value
 									);
 				}}
-				className="w-16 h-8 text-center font-bold p-1"
+				className="!w-12 !flex-none h-8 text-center font-bold p-1"
 				/>
                   
 				  <Button
                     onClick={() => handleIncrement(leader.id)}
                     variant="default"
                     size="sm"
-                    className="h-8 w-8 p-0 bg-[#FFC208] text-black hover:bg-[#FFC208]"
+                    className="h-8 w-8 p-0 flex-shrink-0 bg-[#FFC208] text-black hover:bg-[#FFC208]"
                   >
                     <Plus className="h-3 w-3" />
                   </Button>

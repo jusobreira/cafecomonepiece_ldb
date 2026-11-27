@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import type { MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Minus, RotateCcw, Search } from "lucide-react";
+import { Plus, Minus, RotateCcw, Search, X } from "lucide-react";
 import { Leader, LEADERS, filterLeaders } from "@/lib/leaders";
 
 interface LeaderCount {
@@ -11,9 +12,15 @@ interface LeaderCount {
 
 interface LeaderSelectorProps {
   onDataChange: (data: Array<{ leader: Leader; count: number }>) => void;
+  selectedId?: string | null;
+  onSelect?: (id: string | null) => void;
 }
 
-export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
+export default function LeaderSelector({
+  onDataChange,
+  selectedId = null,
+  onSelect,
+}: LeaderSelectorProps) {
   const [counts, setCounts] = useState<LeaderCount>(
     LEADERS.reduce((acc, leader) => ({ ...acc, [leader.id]: 0 }), {})
   );
@@ -87,6 +94,131 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
 
   const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
+  // Líderes já escolhidos ficam numa seção própria no topo da lista
+  const selectedLeaders = LEADERS.filter((l) => counts[l.id] > 0);
+  const unselectedLeaders = filteredLeaders.filter((l) => !(counts[l.id] > 0));
+
+  // Quando uma fatia é clicada no gráfico, rola a lista até o líder
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  useEffect(() => {
+    if (!selectedId) return;
+    const frame = requestAnimationFrame(() => {
+      rowRefs.current[selectedId]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedId]);
+
+  // Clique na carta: +1 (e seleciona); botão direito: -1
+  const handleCardClick = (leaderId: string) => {
+    handleIncrement(leaderId);
+    onSelect?.(leaderId);
+  };
+
+  const handleCardContextMenu = (
+    e: MouseEvent,
+    leaderId: string
+  ) => {
+    e.preventDefault();
+    if (counts[leaderId] > 0) handleDecrement(leaderId);
+    onSelect?.(leaderId);
+  };
+
+  const renderRow = (leader: Leader, removable: boolean) => (
+    <div
+      key={leader.id}
+      ref={(el) => {
+        rowRefs.current[leader.id] = el;
+      }}
+    >
+      <Card
+        onClick={() => handleCardClick(leader.id)}
+        onContextMenu={(e) => handleCardContextMenu(e, leader.id)}
+        title="Clique: +1 · Botão direito: −1"
+        className={`leader-card p-3 transition-all select-none ${
+          counts[leader.id] > 0 ? "selected bg-accent/10" : "bg-card"
+        } ${selectedId === leader.id ? "ring-2 ring-[#FFC208]" : ""}`}
+      >
+        <div className="flex items-center gap-3">
+          {/* Leader Image Thumbnail */}
+          <div className="flex-shrink-0 w-12 h-16 rounded border-2 border-primary/50 overflow-hidden bg-gray-100">
+            <img
+              src={leader.image}
+              alt={leader.name}
+              loading="lazy"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='64'%3E%3Crect fill='%23ddd' width='48' height='64'/%3E%3C/svg%3E";
+              }}
+            />
+          </div>
+
+          {/* Leader Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-sm leading-tight text-foreground">
+              {leader.name}
+            </h3>
+            <p className="text-xs text-muted-foreground font-mono">
+              {leader.code}
+            </p>
+          </div>
+
+          {/* Counter Controls (não propagam o clique para a carta) */}
+          <div
+            className="flex flex-shrink-0 items-center gap-1.5"
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.stopPropagation()}
+          >
+            <Button
+              onClick={() => handleDecrement(leader.id)}
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0 flex-shrink-0"
+              disabled={counts[leader.id] === 0}
+            >
+              <Minus className="h-3 w-3" />
+            </Button>
+
+            <Input
+              type="number"
+              min={0}
+              value={counts[leader.id]}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                handleSetCount(leader.id, isNaN(value) ? 0 : value);
+              }}
+              className="!w-12 !flex-none h-8 text-center font-bold p-1"
+            />
+
+            <Button
+              onClick={() => handleIncrement(leader.id)}
+              variant="default"
+              size="sm"
+              className="h-8 w-8 p-0 flex-shrink-0 bg-[#FFC208] text-black hover:bg-[#FFC208]"
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+
+            {removable && (
+              <Button
+                onClick={() => handleSetCount(leader.id, 0)}
+                variant="ghost"
+                size="sm"
+                title="Remover da seleção"
+                className="h-8 w-8 p-0 flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="w-full max-w-md">
       <div className="mb-6 flex items-center justify-between">
@@ -130,84 +262,35 @@ export default function LeaderSelector({ onDataChange }: LeaderSelectorProps) {
         </Button>
       </Card>
 
+      <p className="mb-2 text-xs text-muted-foreground">
+        Clique na carta para +1 · botão direito para −1
+      </p>
+
       {/* Leaders List */}
       <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-        {filteredLeaders.length > 0 ? (
-          filteredLeaders.map((leader) => (
-            <Card
-              key={leader.id}
-              className={`leader-card p-3 transition-all ${
-                counts[leader.id] > 0 ? "selected bg-accent/10" : "bg-card"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                {/* Leader Image Thumbnail */}
-                <div className="flex-shrink-0 w-12 h-16 rounded border-2 border-primary/50 overflow-hidden bg-gray-100">
-                  <img
-                    src={leader.image}
-                    alt={leader.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='64'%3E%3Crect fill='%23ddd' width='48' height='64'/%3E%3C/svg%3E";
-                    }}
-                  />
-                </div>
+        {selectedLeaders.length > 0 && (
+          <>
+            <div className="sticky top-0 z-10 bg-background py-1">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-[#FFC208]">
+                Selecionados ({selectedLeaders.length})
+              </h3>
+            </div>
+            {selectedLeaders.map((leader) => renderRow(leader, true))}
+            <div className="border-t border-border pt-3">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                Todos os líderes
+              </h3>
+            </div>
+          </>
+        )}
 
-                {/* Leader Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-sm leading-tight text-foreground">
-                    {leader.name}
-                  </h3>
-                  <p className="text-xs text-muted-foreground font-mono">
-                    {leader.code}
-                  </p>
-                </div>
-
-                {/* Counter Controls */}
-                <div className="flex flex-shrink-0 items-center gap-1.5">
-                  <Button
-                    onClick={() => handleDecrement(leader.id)}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0 flex-shrink-0"
-                    disabled={counts[leader.id] === 0}
-                  >
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  
-				 <Input
-                type="number"
-				min={0}
-				value={counts[leader.id]}
-				onChange={(e) => {
-				const value = parseInt(e.target.value);
-
-				handleSetCount(
-			leader.id,
-			isNaN(value) ? 0 : value
-									);
-				}}
-				className="!w-12 !flex-none h-8 text-center font-bold p-1"
-				/>
-                  
-				  <Button
-                    onClick={() => handleIncrement(leader.id)}
-                    variant="default"
-                    size="sm"
-                    className="h-8 w-8 p-0 flex-shrink-0 bg-[#FFC208] text-black hover:bg-[#FFC208]"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))
-        ) : (
+        {unselectedLeaders.length > 0 ? (
+          unselectedLeaders.map((leader) => renderRow(leader, false))
+        ) : searchQuery ? (
           <div className="text-center py-8 text-muted-foreground">
             <p>Nenhum líder encontrado para "{searchQuery}"</p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Total Count */}

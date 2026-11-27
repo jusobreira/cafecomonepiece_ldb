@@ -1,390 +1,498 @@
 import { useEffect, useRef, useState } from "react";
-import type { MouseEvent, WheelEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { ChevronDown, ChevronUp, GripVertical, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Leader } from "@/lib/leaders";
 import cafeComOnePieceBadge from "@/assets/cafecomonepiece.png";
 
+interface PieChartItem {
+  leader: Leader;
+  count: number;
+}
+
 interface PieChartProps {
-  data: Array<{ leader: Leader; count: number }>;
+  /** Dados já na ordem em que as fatias devem aparecer. */
+  data: PieChartItem[];
+  selectedId?: string | null;
+  onSelect?: (id: string | null) => void;
+  onReorder?: (ids: string[]) => void;
 }
 
 interface ImageAdjustment {
   offsetX: number;
   offsetY: number;
   scale: number;
+  /** false = enquadramento automático; true = ajustado pelo usuário. */
+  manual: boolean;
 }
 
-export default function PieChart({ data }: PieChartProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [imageAdjustments, setImageAdjustments] = useState<
-    Map<string, ImageAdjustment>
-  >(new Map());
-  const [draggingLeader, setDraggingLeader] = useState<string | null>(null);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(
-    null
-  );
+interface Slice {
+  item: PieChartItem;
+  start: number;
+  end: number;
+  mid: number;
+  angle: number;
+}
 
-  // Initialize adjustments for each leader
+const SIZE = 1000;
+const CENTER = SIZE / 2;
+const RADIUS = SIZE / 2 - 40;
+const HOLE_RADIUS = 30;
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 4;
+// Em uma carta (retrato), o centro da arte fica um pouco acima do centro da imagem.
+const ART_CENTER_OFFSET = 0.08;
+const DRAG_THRESHOLD_PX = 5;
+
+const clampScale = (s: number) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
+
+function layoutSlices(data: PieChartItem[]): Slice[] {
+  const total = data.reduce((sum, item) => sum + item.count, 0);
+  let current = -Math.PI / 2;
+  return data.map((item) => {
+    const angle = total > 0 ? (item.count / total) * 2 * Math.PI : 0;
+    const slice = {
+      item,
+      start: current,
+      end: current + angle,
+      mid: current + angle / 2,
+      angle,
+    };
+    current += angle;
+    return slice;
+  });
+}
+
+function baseDims(img: HTMLImageElement) {
+  const aspect = img.naturalWidth / img.naturalHeight;
+  const base = RADIUS * 2;
+  return aspect > 1
+    ? { w: base * aspect, h: base, aspect }
+    : { w: base, h: base / aspect, aspect };
+}
+
+/** Enquadramento automático: leva o centro da arte para o centro da fatia. */
+function autoAdjustment(
+  img: HTMLImageElement | null | undefined,
+  slice: Slice
+): ImageAdjustment {
+  const a = slice.angle;
+  const full = a >= 2 * Math.PI - 1e-6;
+  const distance = full || a <= 0 ? 0 : (4 * RADIUS * Math.sin(a / 2)) / (3 * a);
+  const scale =
+    a <= 0
+      ? 1
+      : Math.min(2.2, Math.max(1, 1 + ((2 * Math.PI) / a - 1) * 0.18));
+
+  let artShift = 0;
+  if (img && img.naturalHeight > 0) {
+    const dims = baseDims(img);
+    if (dims.aspect < 1) artShift = ART_CENTER_OFFSET * dims.h * scale;
+  }
+
+  return {
+    offsetX: distance * Math.cos(slice.mid),
+    offsetY: distance * Math.sin(slice.mid) + artShift,
+    scale,
+    manual: false,
+  };
+}
+
+const resolveCanvasImageUrl = (url: string) => {
+  if (!import.meta.env.PROD) return url;
+  if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+  if (url.startsWith(window.location.origin)) return url;
+  const sanitized = url.replace(/^https?:\/\//, "");
+  return `https://images.weserv.nl/?url=${encodeURIComponent(sanitized)}`;
+};
+
+export default function PieChart({
+  data,
+  selectedId = null,
+  onSelect,
+  onReorder,
+}: PieChartProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imagesRef = useRef<Map<string, HTMLImageElement | null>>(new Map());
+  const badgeRef = useRef<HTMLImageElement | null>(null);
+  const [imgVersion, setImgVersion] = useState(0);
+
+  const [adjustments, setAdjustments] = useState<Map<string, ImageAdjustment>>(
+    new Map()
+  );
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const [dragLegendId, setDragLegendId] = useState<string | null>(null);
+
+  const slices = layoutSlices(data);
+  const slicesRef = useRef<Slice[]>(slices);
+  slicesRef.current = slices;
+
+  const highlightId = hoverId ?? selectedId;
+
+  // Interação com ponteiro (mouse / toque)
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const dragRef = useRef<{
+    id: string | null;
+    lastX: number;
+    lastY: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
+  const pinchRef = useRef<{ id: string; dist: number } | null>(null);
+
+  // Carrega as imagens uma única vez (cache entre renderizações)
   useEffect(() => {
-    const newAdjustments = new Map<string, ImageAdjustment>();
     data.forEach((item) => {
-      if (!imageAdjustments.has(item.leader.id)) {
-        newAdjustments.set(item.leader.id, {
-          offsetX: 0,
-          offsetY: 0,
-          scale: 1,
-        });
-      }
+      const id = item.leader.id;
+      if (imagesRef.current.has(id)) return;
+      imagesRef.current.set(id, null);
+      const url = resolveCanvasImageUrl(item.leader.image);
+
+      const load = (retry: boolean) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          imagesRef.current.set(id, img);
+          setImgVersion((v) => v + 1);
+        };
+        img.onerror = () => {
+          if (retry) load(false);
+        };
+        img.src = url;
+      };
+      load(true);
     });
-    if (newAdjustments.size > 0) {
-      setImageAdjustments(
-        new Map([...imageAdjustments, ...newAdjustments])
-      );
-    }
   }, [data]);
 
   useEffect(() => {
-    if (!canvasRef.current || data.length === 0) return;
+    const badge = new Image();
+    badge.onload = () => {
+      badgeRef.current = badge;
+      setImgVersion((v) => v + 1);
+    };
+    badge.src = cafeComOnePieceBadge;
+  }, []);
 
+  const getAdjustment = (slice: Slice): ImageAdjustment => {
+    const stored = adjustments.get(slice.item.leader.id);
+    if (stored && stored.manual) return stored;
+    return autoAdjustment(imagesRef.current.get(slice.item.leader.id), slice);
+  };
+
+  const render = (highlight: string | null) => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size (account for device pixel ratio for sharper rendering)
-    const size = 1000;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
+    if (canvas.width !== SIZE * dpr) {
+      canvas.width = SIZE * dpr;
+      canvas.height = SIZE * dpr;
+    }
 
-    const centerX = size / 2;
-    const centerY = size / 2;
-    const radius = size / 2 - 40;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-    // Calculate total
-    const total = data.reduce((sum, item) => sum + item.count, 0);
-
-    // Preload all images
-    const imageMap = new Map<string, HTMLImageElement>();
-    const badgeImage = new Image();
-    const resolveCanvasImageUrl = (url: string) => {
-      if (!import.meta.env.PROD) return url;
-      if (url.startsWith("data:") || url.startsWith("blob:")) return url;
-      if (url.startsWith(window.location.origin)) return url;
-      const sanitized = url.replace(/^https?:\/\//, "");
-      return `https://images.weserv.nl/?url=${encodeURIComponent(sanitized)}`;
-    };
-
-    const drawChart = () => {
-      // Clear canvas
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, size, size);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-
-      // Draw images in each slice
-      let currentAngle = -Math.PI / 2;
-
-      data.forEach((item) => {
-        const sliceAngle = (item.count / total) * 2 * Math.PI;
-        const startAngle = currentAngle;
-        const endAngle = currentAngle + sliceAngle;
-
-        ctx.save();
-
-        // Create clipping region for the slice
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-        ctx.lineTo(centerX, centerY);
-        ctx.closePath();
-        ctx.clip();
-
-        const img = imageMap.get(item.leader.id);
-        const adjustment = imageAdjustments.get(item.leader.id) || {
-          offsetX: 0,
-          offsetY: 0,
-          scale: 1,
-        };
-
-        if (img && img.complete && img.naturalHeight !== 0) {
-          // Calculate image position and size
-          const imgAspect = img.width / img.height;
-          let drawWidth, drawHeight;
-
-          // Base size that fills the slice
-          const baseSize = radius * 2;
-          if (imgAspect > 1) {
-            drawHeight = baseSize;
-            drawWidth = drawHeight * imgAspect;
-          } else {
-            drawWidth = baseSize;
-            drawHeight = drawWidth / imgAspect;
-          }
-
-          // Apply user adjustments
-          drawWidth *= adjustment.scale;
-          drawHeight *= adjustment.scale;
-
-          ctx.drawImage(
-            img,
-            centerX + adjustment.offsetX - drawWidth / 2,
-            centerY + adjustment.offsetY - drawHeight / 2,
-            drawWidth,
-            drawHeight
-          );
-        } else {
-          // Fallback color if image fails
-          ctx.fillStyle = item.leader.color;
-          ctx.fill();
-        }
-
-        ctx.restore();
-        currentAngle = endAngle;
-      });
-
-      // Draw borders between slices
-      currentAngle = -Math.PI / 2;
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 8;
-      ctx.lineCap = "round";
-
-      data.forEach((item) => {
-        const sliceAngle = (item.count / total) * 2 * Math.PI;
-        const endAngle = currentAngle + sliceAngle;
-
-        // Draw line from center to edge
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(
-          centerX + Math.cos(currentAngle) * radius,
-          centerY + Math.sin(currentAngle) * radius
-        );
-        ctx.stroke();
-
-        currentAngle = endAngle;
-      });
-
-      // Draw outer circle border
-      ctx.lineWidth = 18;
+    // Imagens em cada fatia
+    slices.forEach((slice) => {
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.moveTo(CENTER, CENTER);
+      ctx.arc(CENTER, CENTER, RADIUS, slice.start, slice.end);
+      ctx.closePath();
+      ctx.clip();
 
-      // Draw center circle
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, 30, 0, Math.PI * 2);
-      ctx.fillStyle = "#000000";
+      // Cor de fundo (aparece se a imagem não cobrir tudo ou falhar)
+      ctx.fillStyle = slice.item.leader.color;
       ctx.fill();
 
-      // Draw a small white dot in the very center
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, 10, 0, Math.PI * 2);
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fill();
-
-      // Draw badge image in the top-right along the outer ring
-      const badgeAngle = -Math.PI / 6;
-      const badgeRadius = radius - 9;
-      const badgeSize = 150;
-
-      if (badgeImage.complete && badgeImage.naturalHeight !== 0) {
-        const badgeX = centerX + Math.cos(badgeAngle) * badgeRadius;
-        const badgeY = centerY + Math.sin(badgeAngle) * badgeRadius;
-
-        ctx.save();
-        ctx.translate(badgeX, badgeY);
-        ctx.rotate(badgeAngle + Math.PI / 2);
-
-        const badgeAspect = badgeImage.width / badgeImage.height || 1;
-        let badgeDrawWidth = badgeSize;
-        let badgeDrawHeight = badgeSize;
-
-        if (badgeAspect > 1) {
-          badgeDrawHeight = badgeSize / badgeAspect;
-        } else {
-          badgeDrawWidth = badgeSize * badgeAspect;
-        }
-
+      const img = imagesRef.current.get(slice.item.leader.id);
+      if (img && img.complete && img.naturalHeight !== 0) {
+        const adj = getAdjustment(slice);
+        const dims = baseDims(img);
+        const drawWidth = dims.w * adj.scale;
+        const drawHeight = dims.h * adj.scale;
         ctx.drawImage(
-          badgeImage,
-          -badgeDrawWidth / 2,
-          -badgeDrawHeight / 2,
-          badgeDrawWidth,
-          badgeDrawHeight
+          img,
+          CENTER + adj.offsetX - drawWidth / 2,
+          CENTER + adj.offsetY - drawHeight / 2,
+          drawWidth,
+          drawHeight
         );
-        ctx.restore();
       }
-
-    };
-
-    // Load all images
-    let imagesLoaded = 0;
-    const leadersToLoad = data.filter((item) => item.count > 0);
-    const totalImagesToLoad = leadersToLoad.length + 1;
-
-    const markImageLoaded = () => {
-      imagesLoaded++;
-      if (imagesLoaded >= totalImagesToLoad) {
-        drawChart();
-      }
-    };
-
-    if (leadersToLoad.length === 0) return;
-
-    leadersToLoad.forEach((item) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      const canvasImageUrl = resolveCanvasImageUrl(item.leader.image);
-
-      const onImageLoad = () => {
-        imageMap.set(item.leader.id, img);
-        markImageLoaded();
-      };
-
-      const onImageError = () => {
-        const retryImg = new Image();
-        retryImg.crossOrigin = "anonymous";
-        retryImg.onload = () => {
-          imageMap.set(item.leader.id, retryImg);
-          markImageLoaded();
-        };
-        retryImg.onerror = () => {
-          markImageLoaded();
-        };
-        retryImg.src = canvasImageUrl;
-      };
-
-      img.onload = onImageLoad;
-      img.onerror = onImageError;
-      img.src = canvasImageUrl;
+      ctx.restore();
     });
 
-    badgeImage.onload = markImageLoaded;
-    badgeImage.onerror = markImageLoaded;
-    badgeImage.src = cafeComOnePieceBadge;
+    // Divisórias entre as fatias
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    slices.forEach((slice) => {
+      ctx.beginPath();
+      ctx.moveTo(CENTER, CENTER);
+      ctx.lineTo(
+        CENTER + Math.cos(slice.start) * RADIUS,
+        CENTER + Math.sin(slice.start) * RADIUS
+      );
+      ctx.stroke();
+    });
 
-    drawChart();
-  }, [data, imageAdjustments]);
+    // Borda externa
+    ctx.lineWidth = 18;
+    ctx.beginPath();
+    ctx.arc(CENTER, CENTER, RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
 
-  const handleCanvasMouseDown = (e: MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current) return;
+    // Destaque da fatia selecionada / sob o mouse (não vai para o download)
+    const highlighted = highlight
+      ? slices.find((s) => s.item.leader.id === highlight)
+      : undefined;
+    if (highlighted) {
+      ctx.save();
+      ctx.strokeStyle = "#FFC208";
+      ctx.lineWidth = 12;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(CENTER, CENTER);
+      ctx.arc(CENTER, CENTER, RADIUS - 6, highlighted.start, highlighted.end);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
 
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Círculo central
+    ctx.beginPath();
+    ctx.arc(CENTER, CENTER, HOLE_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = "#000000";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(CENTER, CENTER, 10, 0, Math.PI * 2);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fill();
 
-    // Scale to canvas coordinates
-    const scaleX = canvasRef.current.width / rect.width;
-    const scaleY = canvasRef.current.height / rect.height;
-    const canvasX = x * scaleX;
-    const canvasY = y * scaleY;
+    // Selo no canto superior direito do anel externo
+    const badgeImage = badgeRef.current;
+    if (badgeImage && badgeImage.naturalHeight !== 0) {
+      const badgeAngle = -Math.PI / 6;
+      const badgeRadius = RADIUS - 9;
+      const badgeSize = 150;
+      const badgeX = CENTER + Math.cos(badgeAngle) * badgeRadius;
+      const badgeY = CENTER + Math.sin(badgeAngle) * badgeRadius;
 
-    const centerX = canvasRef.current.width / 2;
-    const centerY = canvasRef.current.height / 2;
+      ctx.save();
+      ctx.translate(badgeX, badgeY);
+      ctx.rotate(badgeAngle + Math.PI / 2);
+      const aspect = badgeImage.width / badgeImage.height || 1;
+      let w = badgeSize;
+      let h = badgeSize;
+      if (aspect > 1) h = badgeSize / aspect;
+      else w = badgeSize * aspect;
+      ctx.drawImage(badgeImage, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    }
+  };
 
-    // Find which slice was clicked
-    const dx = canvasX - centerX;
-    const dy = canvasY - centerY;
+  useEffect(() => {
+    render(highlightId);
+  }, [data, adjustments, imgVersion, highlightId]);
+
+  // Converte a posição do ponteiro para as coordenadas do gráfico (0..SIZE)
+  const toChart = (clientX: number, clientY: number) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) / rect.width) * SIZE,
+      y: ((clientY - rect.top) / rect.height) * SIZE,
+      rect,
+    };
+  };
+
+  const hitSlice = (x: number, y: number): Slice | null => {
+    const dx = x - CENTER;
+    const dy = y - CENTER;
     const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance <= HOLE_RADIUS || distance >= RADIUS) return null;
+
     const angle = Math.atan2(dy, dx);
+    for (const slice of slicesRef.current) {
+      let a = angle;
+      while (a < slice.start) a += 2 * Math.PI;
+      while (a >= slice.start + 2 * Math.PI) a -= 2 * Math.PI;
+      if (a < slice.end) return slice;
+    }
+    return null;
+  };
 
-    const radius = canvasRef.current.width / 2 - 40;
-    if (distance > 30 && distance < radius) {
-      const total = data.reduce((sum, item) => sum + item.count, 0);
-      let currentAngle = -Math.PI / 2;
+  const updateAdjustment = (
+    id: string,
+    fn: (current: ImageAdjustment) => ImageAdjustment
+  ) => {
+    setAdjustments((prev) => {
+      const slice = slicesRef.current.find((s) => s.item.leader.id === id);
+      if (!slice) return prev;
+      const stored = prev.get(id);
+      const current =
+        stored && stored.manual
+          ? stored
+          : autoAdjustment(imagesRef.current.get(id), slice);
+      const next = new Map(prev);
+      next.set(id, { ...fn(current), manual: true });
+      return next;
+    });
+  };
 
-      for (const item of data) {
-        const sliceAngle = (item.count / total) * 2 * Math.PI;
-        const startAngle = currentAngle;
-        const endAngle = currentAngle + sliceAngle;
+  const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-        let normalizedAngle = angle;
-        if (normalizedAngle < startAngle) normalizedAngle += 2 * Math.PI;
-
-        if (normalizedAngle >= startAngle && normalizedAngle < endAngle) {
-          setDraggingLeader(item.leader.id);
-          setDragStart({ x: canvasX, y: canvasY });
-          break;
-        }
-
-        currentAngle = endAngle;
+    if (pointersRef.current.size === 1) {
+      const { x, y } = toChart(e.clientX, e.clientY);
+      const slice = hitSlice(x, y);
+      dragRef.current = {
+        id: slice ? slice.item.leader.id : null,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+      };
+    } else if (pointersRef.current.size === 2) {
+      // Pinça: zoom na fatia em que o primeiro dedo tocou
+      const drag = dragRef.current;
+      const [p1, p2] = Array.from(pointersRef.current.values());
+      if (drag && drag.id) {
+        drag.moved = true;
+        pinchRef.current = {
+          id: drag.id,
+          dist: Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1,
+        };
       }
     }
   };
 
-  const handleCanvasMouseMove = (e: MouseEvent<HTMLCanvasElement>) => {
-    if (!draggingLeader || !dragStart || !canvasRef.current) return;
+  const handlePointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current) return;
 
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    if (pointersRef.current.has(e.pointerId)) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
 
-    const scaleX = canvasRef.current.width / rect.width;
-    const scaleY = canvasRef.current.height / rect.height;
-    const canvasX = x * scaleX;
-    const canvasY = y * scaleY;
+    // Pinça
+    if (pointersRef.current.size === 2 && pinchRef.current) {
+      const [p1, p2] = Array.from(pointersRef.current.values());
+      const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1;
+      const ratio = dist / pinchRef.current.dist;
+      pinchRef.current.dist = dist;
+      updateAdjustment(pinchRef.current.id, (a) => ({
+        ...a,
+        scale: clampScale(a.scale * ratio),
+      }));
+      return;
+    }
 
-    const deltaX = canvasX - dragStart.x;
-    const deltaY = canvasY - dragStart.y;
+    const drag = dragRef.current;
+    if (drag && pointersRef.current.size === 1) {
+      if (
+        !drag.moved &&
+        Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) >
+          DRAG_THRESHOLD_PX
+      ) {
+        drag.moved = true;
+      }
 
-    const currentAdjustment = imageAdjustments.get(draggingLeader) || {
-      offsetX: 0,
-      offsetY: 0,
-      scale: 1,
-    };
+      if (drag.moved && drag.id) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const dx = ((e.clientX - drag.lastX) / rect.width) * SIZE;
+        const dy = ((e.clientY - drag.lastY) / rect.height) * SIZE;
+        updateAdjustment(drag.id, (a) => ({
+          ...a,
+          offsetX: a.offsetX + dx,
+          offsetY: a.offsetY + dy,
+        }));
+      }
+      drag.lastX = e.clientX;
+      drag.lastY = e.clientY;
+      return;
+    }
 
-    const newAdjustments = new Map(imageAdjustments);
-    newAdjustments.set(draggingLeader, {
-      ...currentAdjustment,
-      offsetX: currentAdjustment.offsetX + deltaX * 0.5,
-      offsetY: currentAdjustment.offsetY + deltaY * 0.5,
-    });
-
-    setImageAdjustments(newAdjustments);
-    setDragStart({ x: canvasX, y: canvasY });
+    // Sem arrastar: só destaca a fatia sob o mouse
+    if (e.pointerType === "mouse") {
+      const { x, y } = toChart(e.clientX, e.clientY);
+      const slice = hitSlice(x, y);
+      const id = slice ? slice.item.leader.id : null;
+      setHoverId((prev) => (prev === id ? prev : id));
+    }
   };
 
-  const handleCanvasMouseUp = () => {
-    setDraggingLeader(null);
-    setDragStart(null);
+  const endPointer = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    pointersRef.current.delete(e.pointerId);
+    pinchRef.current = null;
+
+    if (pointersRef.current.size > 0) {
+      // Sobrou um dedo depois da pinça: não trata como clique
+      dragRef.current = null;
+      return;
+    }
+
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (drag && !drag.moved && e.type === "pointerup") {
+      onSelect?.(drag.id);
+    }
   };
 
-  const handleWheel = (e: WheelEvent<HTMLCanvasElement>) => {
-    if (!draggingLeader) return;
+  const handlePointerLeave = () => setHoverId(null);
+
+  // Zoom com o scroll sobre a fatia (sem precisar segurar o clique).
+  // Listener nativo porque o do React é passivo e não deixa chamar preventDefault.
+  const wheelRef = useRef<(e: WheelEvent) => void>(() => {});
+  wheelRef.current = (e: WheelEvent) => {
+    if (!canvasRef.current) return;
+    const { x, y } = toChart(e.clientX, e.clientY);
+    const slice = hitSlice(x, y);
+    if (!slice) return;
     e.preventDefault();
-
-    const currentAdjustment = imageAdjustments.get(draggingLeader) || {
-      offsetX: 0,
-      offsetY: 0,
-      scale: 1,
-    };
-
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    const newScale = Math.max(0.5, Math.min(3, currentAdjustment.scale + delta));
-
-    const newAdjustments = new Map(imageAdjustments);
-    newAdjustments.set(draggingLeader, {
-      ...currentAdjustment,
-      scale: newScale,
-    });
-
-    setImageAdjustments(newAdjustments);
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    updateAdjustment(slice.item.leader.id, (a) => ({
+      ...a,
+      scale: clampScale(a.scale * factor),
+    }));
   };
+
+  const hasData = data.length > 0;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const listener = (e: WheelEvent) => wheelRef.current(e);
+    canvas.addEventListener("wheel", listener, { passive: false });
+    return () => canvas.removeEventListener("wheel", listener);
+  }, [hasData]);
 
   const resetAdjustment = (leaderId: string) => {
-    const newAdjustments = new Map(imageAdjustments);
-    newAdjustments.set(leaderId, {
-      offsetX: 0,
-      offsetY: 0,
-      scale: 1,
+    setAdjustments((prev) => {
+      const next = new Map(prev);
+      next.delete(leaderId);
+      return next;
     });
-    setImageAdjustments(newAdjustments);
   };
+
+  const resetAllAdjustments = () => setAdjustments(new Map());
+
+  const hasManualAdjustments = data.some(
+    (item) => adjustments.get(item.leader.id)?.manual
+  );
 
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Redesenha sem o destaque amarelo para exportar a imagem limpa
+    render(null);
     const link = document.createElement("a");
     try {
       link.href = canvas.toDataURL("image/png");
@@ -394,9 +502,26 @@ export default function PieChart({ data }: PieChartProps) {
         "Não foi possível exportar a imagem. Verifique se as imagens permitem uso com CORS."
       );
       return;
+    } finally {
+      render(highlightId);
     }
     link.download = "grafico.png";
     link.click();
+  };
+
+  // Reordenação das fatias
+  const moveItem = (from: number, to: number) => {
+    if (!onReorder || from === to || to < 0 || to >= data.length) return;
+    const ids = data.map((item) => item.leader.id);
+    const [moved] = ids.splice(from, 1);
+    ids.splice(to, 0, moved);
+    onReorder(ids);
+  };
+
+  const sortByCount = () => {
+    onReorder?.(
+      [...data].sort((a, b) => b.count - a.count).map((i) => i.leader.id)
+    );
   };
 
   if (data.length === 0) {
@@ -409,84 +534,163 @@ export default function PieChart({ data }: PieChartProps) {
     );
   }
 
+  const total = data.reduce((s, i) => s + i.count, 0);
+
   return (
     <div className="flex flex-col items-center justify-center w-full gap-8">
       <div className="relative w-full max-w-2xl">
         <canvas
           ref={canvasRef}
           className="w-full h-auto border-4 border-gray-300 rounded-lg cursor-grab active:cursor-grabbing"
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseUp}
-          onWheel={handleWheel}
+          style={{ touchAction: "none" }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
+          onPointerLeave={handlePointerLeave}
         />
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-gray-500">
-            Clique em uma fatia, arraste para mover a imagem, use scroll para zoom
+            Clique numa fatia para selecioná-la · arraste para mover a imagem ·
+            scroll (ou pinça) para zoom
           </p>
-          <Button
-            size="sm"
-            onClick={handleDownload}
-            className="w-32 bg-[#FFC208] text-black hover:bg-[#FFC208]"
-          >
-            Baixar
-          </Button>
+          <div className="flex gap-2">
+            {hasManualAdjustments && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={resetAllAdjustments}
+                className="gap-1"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reenquadrar todos
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleDownload}
+              className="w-32 bg-[#FFC208] text-black hover:bg-[#FFC208]"
+            >
+              Baixar
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Legend */}
       <div className="w-full max-w-2xl">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-xs text-gray-500">
+            Arraste pela alça ou use as setas para reordenar as fatias
+          </p>
+          <Button size="sm" variant="outline" onClick={sortByCount}>
+            Ordenar por quantidade
+          </Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {data
-            .sort((a, b) => b.count - a.count)
-            .map((item) => {
-              const adjustment = imageAdjustments.get(item.leader.id);
-              const isSelected = draggingLeader === item.leader.id;
+          {data.map((item, index) => {
+            const id = item.leader.id;
+            const adjustment = adjustments.get(id);
+            const isSelected = selectedId === id;
+            const isHover = hoverId === id;
 
-              return (
-                <div
-                  key={item.leader.id}
-                  className={`flex items-center gap-3 p-3 rounded border-2 transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/10"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <div className="flex-shrink-0 w-10 h-14 rounded border border-gray-300 overflow-hidden">
-                    <img
-                      src={item.leader.image}
-                      alt={item.leader.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">
-                      {item.leader.name}
+            return (
+              <div
+                key={id}
+                draggable={!!onReorder}
+                onDragStart={(e) => {
+                  setDragLegendId(id);
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", id);
+                }}
+                onDragOver={(e) => {
+                  if (dragLegendId) e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!dragLegendId) return;
+                  const from = data.findIndex(
+                    (i) => i.leader.id === dragLegendId
+                  );
+                  moveItem(from, index);
+                  setDragLegendId(null);
+                }}
+                onDragEnd={() => setDragLegendId(null)}
+                onClick={() => onSelect?.(isSelected ? null : id)}
+                onMouseEnter={() => setHoverId(id)}
+                onMouseLeave={() => setHoverId(null)}
+                className={`flex items-center gap-2 p-3 rounded border-2 transition-all cursor-pointer ${
+                  isSelected || isHover
+                    ? "border-primary bg-primary/10"
+                    : "border-gray-200 bg-white"
+                } ${dragLegendId === id ? "opacity-50" : ""}`}
+              >
+                {onReorder && (
+                  <GripVertical
+                    className="h-4 w-4 flex-shrink-0 text-gray-400 cursor-grab"
+                    aria-hidden
+                  />
+                )}
+                <div className="flex-shrink-0 w-10 h-14 rounded border border-gray-300 overflow-hidden">
+                  <img
+                    src={item.leader.image}
+                    alt={item.leader.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">
+                    {item.leader.name}
+                  </p>
+                  <p className="text-xs text-gray-500">{item.leader.code}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-lg font-bold text-[#FFC208]">
+                      {item.count}
                     </p>
-                    <p className="text-xs text-gray-500">{item.leader.code}</p>
+                    <p className="text-xs font-semibold text-gray-600">
+                      {((item.count / total) * 100).toFixed(1)}%
+                    </p>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-lg font-bold text-[#FFC208]">
-                        {item.count}
-                      </p>
-                      <p className="text-xs font-semibold text-gray-600">
-                        {((item.count / data.reduce((s, i) => s + i.count, 0)) * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                    {adjustment && (adjustment.offsetX !== 0 || adjustment.offsetY !== 0 || adjustment.scale !== 1) && (
+                  <div
+                    className="flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {adjustment?.manual && (
                       <button
-                        onClick={() => resetAdjustment(item.leader.id)}
+                        onClick={() => resetAdjustment(id)}
+                        title="Voltar ao enquadramento automático"
                         className="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors"
                       >
-                        Reset
+                        Reenquadrar
                       </button>
+                    )}
+                    {onReorder && (
+                      <>
+                        <button
+                          onClick={() => moveItem(index, index - 1)}
+                          disabled={index === 0}
+                          title="Mover fatia para antes"
+                          className="p-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors disabled:opacity-40"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => moveItem(index, index + 1)}
+                          disabled={index === data.length - 1}
+                          title="Mover fatia para depois"
+                          className="p-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors disabled:opacity-40"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
